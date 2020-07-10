@@ -16,13 +16,25 @@ Resources:
     Properties:
       GroupName: MythicalMysfitsLB
       GroupDescription: Load Balancer
-      # Ingress rules
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
   InstanceSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: MythicalMysfitsInstance
       GroupDescription: Instances
-      # Ingress rules
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 8000
+        ToPort: 8080
+        SourceSecurityGroupName: !Ref LoadBalancerSG
   LoadBalancer:
     Type: AWS::ElasticLoadBalancing::LoadBalancer
     Properties:
@@ -30,8 +42,17 @@ Resources:
       SecurityGroups:
         - !GetAtt LoadBalancerSG.GroupId
       AvailabilityZones: !GetAZs
-      # Listeners
-      # HealthCheck
+      Listeners:
+        - InstancePort: 8000
+          InstanceProtocol: tcp
+          LoadBalancerPort: 80
+          Protocol: tcp
+      HealthCheck:
+        HealthyThreshold: 2
+        Interval: 30
+        Target: "TCP:8080"
+        Timeout: 5
+        UnhealthyThreshold: 5
   LaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
@@ -43,5 +64,26 @@ Resources:
       KeyName: mythical-mysfits
       SecurityGroups:
         - !GetAtt InstanceSG.GroupId
-      # UserData
-  # AutoScalingGroup:
+      UserData:
+        Fn::Base64: | 
+          #!/bin/bash 
+          yum install -y python37
+          curl -O https://bootstrap.pypa.io/get-pip.py
+          python3 get-pip.py
+          yum install -y git
+          git clone https://github.com/mimi-mede/bootcamp-module-devops.git
+          cd /bootcamp-module-devops/backend/
+          /usr/local/bin/pip install -r requirements.txt
+          nohup /usr/local/bin/gunicorn -w 3 -b 0.0.0.0:8080 app:app & 
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones: !GetAZs
+      AutoScalingGroupName: MysfitsASG
+      MinSize: "1"
+      MaxSize: "1"
+      DesiredCapacity: "1"
+      HealthCheckGracePeriod: 300
+      LaunchConfigurationName: !Ref LaunchConfiguration
+      LoadBalancerNames: 
+        - !Ref LoadBalancer
