@@ -5,18 +5,22 @@ files:
     destination: /home/ec2-user/app
 hooks:
   ApplicationStop:
-    - location: talleres/08/scripts/stop_app.sh
+    - location: talleres/09/scripts/stop_app.sh
       timeout: 300
       runas: root
   BeforeInstall:
-    - location: talleres/08/scripts/install_dependencies.sh
+    - location: talleres/09/scripts/install_dependencies.sh
       timeout: 300
       runas: root
   AfterInstall:
-    - location: talleres/08/scripts/install_libraries.sh
+    - location: talleres/09/scripts/install_libraries.sh
       timeout: 300
       runas: root
   ApplicationStart:
-    - location: talleres/08/scripts/start_app.sh
+    - location: talleres/09/scripts/start_app.sh
+      timeout: 300
+      runas: root
+  ValidateService:
+    - location: talleres/09/scripts/validate_app.sh
       timeout: 300
       runas: root
